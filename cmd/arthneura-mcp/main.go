@@ -394,6 +394,37 @@ func acceptLocal(_ context.Context, _ *mcp.CallToolRequest, in acceptIn) (*mcp.C
 	return nil, acceptOut{Text: text}, nil
 }
 
+
+type lockIn struct {
+    CommitmentID string `json:"commitment_id" jsonschema:"commitment id to acknowledge and lock"`
+}
+
+type lockOut struct {
+    Error string `json:"error,omitempty"`
+    Text  string `json:"text,omitempty"`
+}
+
+func lockLocal(_ context.Context, _ *mcp.CallToolRequest, in lockIn) (*mcp.CallToolResult, lockOut, error) {
+    bin := os.Getenv("LOCK_BIN")
+    if bin == "" {
+        return nil, lockOut{Error: "LOCK_BIN missing"}, nil
+    }
+    if in.CommitmentID == "" {
+        return nil, lockOut{Error: "commitment_id required"}, nil
+    }
+    cmd := exec.Command(bin)
+    cmd.Env = append(os.Environ(), "COMMITMENT_ID="+in.CommitmentID)
+    out, err := cmd.CombinedOutput()
+    text := strings.TrimSpace(string(out))
+    if err != nil {
+        if text == "" {
+            text = err.Error()
+        }
+        return nil, lockOut{Error: text}, nil
+    }
+    return nil, lockOut{Text: text}, nil
+}
+
 func main() {
 	httpAddr := flag.String("http", "", "if set, streamable HTTP listen addr (example :8787)")
 	flag.Parse()
@@ -416,6 +447,9 @@ func main() {
 				mcp.AddTool(s, &mcp.Tool{Name: "arthneura_decide", Description: "Apply saved floors. Accept the highest open offer at or above the floor. Seller sign only."}, decideLocal)
 				if os.Getenv("ACCEPT_BIN") != "" {
 					mcp.AddTool(s, &mcp.Tool{Name: "arthneura_accept", Description: "Sign this offer with the local key. Other side of decide. No escrow."}, acceptLocal)
+					if os.Getenv("LOCK_BIN") != "" {
+                        mcp.AddTool(s, &mcp.Tool{Name: "arthneura_lock", Description: "Trigger on-chain acknowledge to lock funds for a commitment. Runs only on this machine."}, lockLocal)
+                    }
 				}
 			}
 			if os.Getenv("RULE_BIN") != "" {

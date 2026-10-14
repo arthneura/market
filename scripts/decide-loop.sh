@@ -8,22 +8,22 @@ COMMIT_BIN="${COMMIT_BIN:-$HOME/.arthneura/bin/commit-me}"
 POINTER="$HOME/.arthneura/owner.dir"
 MARKET_URL="${MARKET_URL:-https://api.arthneura.com}"
 
-[ -x "$BIN" ] || exit 0
 [ -f "$POINTER" ] || exit 0
 DIR="$(tr -d '[:space:]' < "$POINTER")"
 [ -n "$DIR" ] || exit 0
-[ -f "$DIR/rules.json" ] || exit 0
 [ -f "$DIR/owner.did" ] || exit 0
 [ -f "$DIR/controller.seed" ] || exit 0
 
 DID="$(tr -d '[:space:]' < "$DIR/owner.did")"
 SEED="$(tr -d '[:space:]' < "$DIR/controller.seed")"
 
-# 1. Accept
-OWNER_DIR="$DIR" OWNER_DID="$DID" CONTROLLER_SEED="$SEED" \
-  MARKET_URL="$MARKET_URL" "$BIN"
+# 1. Accept only if rules.json exists (seller side)
+if [ -f "$DIR/rules.json" ] && [ -x "$BIN" ]; then
+  OWNER_DIR="$DIR" OWNER_DID="$DID" CONTROLLER_SEED="$SEED" \
+    MARKET_URL="$MARKET_URL" "$BIN" || true
+fi
 
-# 2. Auto spec + commit + lock for accepted offers that have stamp data
+# 2. Spec / Commit / Lock for any accepted offers (both sides)
 if command -v jq >/dev/null 2>&1; then
   OFFERS=$(curl -s "$MARKET_URL/v1/offers" || true)
   echo "$OFFERS" | jq -r '.offers[] | select(.status=="accepted") | .id' | while read -r OID; do
@@ -34,19 +34,16 @@ if command -v jq >/dev/null 2>&1; then
     MERKLE=$(echo "$STAMP" | jq -r '.merkle_root // empty')
     CHUNKS=$(echo "$STAMP" | jq -r '.total_chunks // empty')
 
-    # Spec if missing
-    if [ -x "$SPEC_BIN" ] && [ -n "$MERKLE" ] && [ "$MERKLE" != "null" ] && [ -n "$CHUNKS" ]; then
+    if [ -x "$SPEC_BIN" ] && [ -n "$MERKLE" ] && [ "$MERKLE" != "null" ] && [ -n "$CHUNKS" ] && [ "$CHUNKS" != "null" ]; then
       echo "AUTO-SPEC offer=$OID"
       OFFER_ID="$OID" MERKLE_ROOT="$MERKLE" TOTAL_CHUNKS="$CHUNKS" MARKET_URL="$MARKET_URL" "$SPEC_BIN" || true
     fi
 
-    # Commit if CID present
     if [ -x "$COMMIT_BIN" ] && [ -n "$CID" ] && [ "$CID" != "null" ]; then
       echo "AUTO-COMMIT offer=$OID commitment=$CID"
       OFFER_ID="$OID" COMMITMENT_ID="$CID" MARKET_URL="$MARKET_URL" "$COMMIT_BIN" || true
     fi
 
-    # Lock if ready
     if [ -x "$LOCK_BIN" ] && [ -n "$CID" ] && [ "$CID" != "null" ] && [ "$READY" = "true" ]; then
       echo "AUTO-LOCK offer=$OID commitment=$CID"
       OWNER_DIR="$DIR" COMMITMENT_ID="$CID" "$LOCK_BIN" || true

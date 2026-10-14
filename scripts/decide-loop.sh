@@ -5,6 +5,7 @@ BIN="${BIN:-$HOME/.arthneura/bin/decide-me}"
 LOCK_BIN="${LOCK_BIN:-$HOME/.arthneura/bin/lock-me}"
 SPEC_BIN="${SPEC_BIN:-$HOME/.arthneura/bin/spec-me}"
 COMMIT_BIN="${COMMIT_BIN:-$HOME/.arthneura/bin/commit-me}"
+REGISTER_BIN="${REGISTER_BIN:-$HOME/.arthneura/bin/register-me}"
 POINTER="$HOME/.arthneura/owner.dir"
 MARKET_URL="${MARKET_URL:-https://api.arthneura.com}"
 
@@ -23,7 +24,7 @@ if [ -f "$DIR/rules.json" ] && [ -x "$BIN" ]; then
     MARKET_URL="$MARKET_URL" "$BIN" || true
 fi
 
-# 2. Spec / Commit / Lock for any accepted offers (both sides)
+# 2. Register / Spec / Commit / Lock for accepted offers
 if command -v jq >/dev/null 2>&1; then
   OFFERS=$(curl -s "$MARKET_URL/v1/offers" || true)
   echo "$OFFERS" | jq -r '.offers[] | select(.status=="accepted") | .id' | while read -r OID; do
@@ -33,6 +34,12 @@ if command -v jq >/dev/null 2>&1; then
     READY=$(echo "$STAMP" | jq -r '.ready // false')
     MERKLE=$(echo "$STAMP" | jq -r '.merkle_root // empty')
     CHUNKS=$(echo "$STAMP" | jq -r '.total_chunks // empty')
+
+    # Register if no commitment yet
+    if [ -x "$REGISTER_BIN" ] && { [ -z "$CID" ] || [ "$CID" = "null" ]; }; then
+      echo "AUTO-REGISTER offer=$OID"
+      OWNER_DIR="$DIR" OFFER_ID="$OID" "$REGISTER_BIN" || true
+    fi
 
     if [ -x "$SPEC_BIN" ] && [ -n "$MERKLE" ] && [ "$MERKLE" != "null" ] && [ -n "$CHUNKS" ] && [ "$CHUNKS" != "null" ]; then
       echo "AUTO-SPEC offer=$OID"

@@ -5,7 +5,7 @@ BIN="${BIN:-$HOME/.arthneura/bin/decide-me}"
 LOCK_BIN="${LOCK_BIN:-$HOME/.arthneura/bin/lock-me}"
 SPEC_BIN="${SPEC_BIN:-$HOME/.arthneura/bin/spec-me}"
 COMMIT_BIN="${COMMIT_BIN:-$HOME/.arthneura/bin/commit-me}"
-REGISTER_BIN="${REGISTER_BIN:-$HOME/.arthneura/bin/register-me}"
+CHAIN_REGISTER_BIN="${CHAIN_REGISTER_BIN:-$HOME/.arthneura/bin/chain-register-me}"
 POINTER="$HOME/.arthneura/owner.dir"
 MARKET_URL="${MARKET_URL:-https://api.arthneura.com}"
 
@@ -36,9 +36,9 @@ if command -v jq >/dev/null 2>&1; then
     CHUNKS=$(echo "$STAMP" | jq -r '.total_chunks // empty')
 
     # Register if no commitment yet
-    if [ -x "$REGISTER_BIN" ] && { [ -z "$CID" ] || [ "$CID" = "null" ]; }; then
+    if [ -x "$CHAIN_REGISTER_BIN" ] && { [ -z "$CID" ] || [ "$CID" = "null" ]; }; then
       echo "AUTO-REGISTER offer=$OID"
-      OWNER_DIR="$DIR" OFFER_ID="$OID" "$REGISTER_BIN" || true
+      OWNER_DIR="$DIR" OFFER_ID="$OID" "$CHAIN_REGISTER_BIN" || true
     fi
 
     if [ -x "$SPEC_BIN" ] && [ -n "$MERKLE" ] && [ "$MERKLE" != "null" ] && [ -n "$CHUNKS" ] && [ "$CHUNKS" != "null" ]; then

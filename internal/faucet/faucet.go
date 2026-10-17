@@ -31,7 +31,7 @@ func Handler(w http.ResponseWriter, r *http.Request) {
         return
     }
 
-    api, err := gsrpc.NewSubstrateAPI("ws://127.0.0.1:9944")
+    api, err := gsrpc.NewSubstrateAPI("ws://172.16.0.4:9944")
     if err != nil {
         http.Error(w, err.Error(), http.StatusInternalServerError)
         return

@@ -1,7 +1,6 @@
 package faucet
 
 import (
-    "fmt"
     "net/http"
     "sync"
 

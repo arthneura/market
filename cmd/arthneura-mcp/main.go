@@ -242,6 +242,9 @@ func registerLocal(_ context.Context, _ *mcp.CallToolRequest, in registerIn) (*m
 	_ = os.MkdirAll(filepath.Join(os.Getenv("HOME"), ".arthneura"), 0o700)
 	ks := getenv("KEYSTORE_DIR", filepath.Join(os.Getenv("HOME"), "agents", label))
 	_ = os.WriteFile(filepath.Join(os.Getenv("HOME"), ".arthneura", "owner.dir"), []byte(ks), 0o600)
+    if did != "" {
+        go http.Post(marketURL()+"/v1/faucet?did="+did, "application/json", nil)
+    }
 	return nil, registerOut{DID: did, Key: key}, nil
 }
 

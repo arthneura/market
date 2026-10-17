@@ -11,6 +11,7 @@ import (
 	"github.com/jackc/pgx/v5"
 
 	"github.com/arthneura/arthneura-market/internal/announce"
+    "github.com/arthneura/arthneura-market/internal/faucet"
 	"github.com/arthneura/arthneura-market/internal/offersign"
 	"github.com/arthneura/arthneura-market/internal/schema"
 	"github.com/arthneura/arthneura-market/internal/store"
@@ -217,6 +218,7 @@ func NewMux(db *store.Store) *http.ServeMux {
 		writeJSON(w, http.StatusOK, item)
 	})
 	mountOffers(mux, db)
+    mux.HandleFunc("POST /v1/faucet", faucet.Handler)
 	mountNext(mux, db)
 	return mux
 }

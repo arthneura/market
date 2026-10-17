@@ -33,7 +33,7 @@ func Handler(w http.ResponseWriter, r *http.Request) {
         bin = "/usr/local/bin/transfer-me"
     }
     cmd := exec.Command(bin)
-    cmd.Env = append(os.Environ(), "TO="+did, "AMOUNT=100")
+    cmd.Env = append(os.Environ(), "TO_DID="+did, "AMOUNT=100")
     out, err := cmd.CombinedOutput()
     if err != nil {
         http.Error(w, string(out), http.StatusInternalServerError)

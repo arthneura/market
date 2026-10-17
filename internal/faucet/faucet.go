@@ -2,6 +2,8 @@ package faucet
 
 import (
     "net/http"
+    "os"
+    "os/exec"
     "sync"
 )
 
@@ -26,7 +28,17 @@ func Handler(w http.ResponseWriter, r *http.Request) {
         http.Error(w, "already funded", http.StatusConflict)
         return
     }
-    // TODO: actual chain transfer of 100 units
+    bin := os.Getenv("TRANSFER_BIN")
+    if bin == "" {
+        bin = "/usr/local/bin/transfer-me"
+    }
+    cmd := exec.Command(bin)
+    cmd.Env = append(os.Environ(), "TO_DID="+did, "AMOUNT=100")
+    out, err := cmd.CombinedOutput()
+    if err != nil {
+        http.Error(w, string(out), http.StatusInternalServerError)
+        return
+    }
     funded[did] = true
     w.Write([]byte(`{"ok":true,"amount":100}`))
 }

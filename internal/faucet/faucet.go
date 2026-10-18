@@ -4,7 +4,7 @@ import (
     "net/http"
     "sync"
 
-    gsrpc "github.com/centrifuge/go-substrate-rpc-client/v4"
+    "github.com/centrifuge/go-substrate-rpc-client/v4/client"
     "github.com/centrifuge/go-substrate-rpc-client/v4/signature"
     "github.com/centrifuge/go-substrate-rpc-client/v4/types"
 )
@@ -31,11 +31,12 @@ func Handler(w http.ResponseWriter, r *http.Request) {
         return
     }
 
-    api, err := gsrpc.NewSubstrateAPI("ws://node:9944")
+    api, err := client.Connect("ws://node:9944")
     if err != nil {
         http.Error(w, err.Error(), http.StatusInternalServerError)
         return
     }
+    defer api.Client.Close()
 
     meta, err := api.RPC.State.GetMetadataLatest()
     if err != nil {
@@ -49,7 +50,7 @@ func Handler(w http.ResponseWriter, r *http.Request) {
         return
     }
 
-    dest, err := types.NewMultiAddressFromHexAccountID(did)
+    dest, err := types.NewAddressFromHexAccountID(did)
     if err != nil {
         http.Error(w, err.Error(), http.StatusInternalServerError)
         return

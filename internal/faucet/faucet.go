@@ -2,9 +2,11 @@ package faucet
 
 import (
     "net/http"
-    "os"
-    "os/exec"
     "sync"
+
+    "github.com/centrifuge/go-substrate-rpc-client/v4/client"
+    "github.com/centrifuge/go-substrate-rpc-client/v4/signature"
+    "github.com/centrifuge/go-substrate-rpc-client/v4/types"
 )
 
 var (
@@ -28,17 +30,79 @@ func Handler(w http.ResponseWriter, r *http.Request) {
         http.Error(w, "already funded", http.StatusConflict)
         return
     }
-    bin := os.Getenv("TRANSFER_BIN")
-    if bin == "" {
-        bin = "/usr/local/bin/transfer-me"
-    }
-    cmd := exec.Command(bin)
-    cmd.Env = append(os.Environ(), "TO="+did, "AMOUNT=100")
-    out, err := cmd.CombinedOutput()
+
+    api, err := client.Connect("ws://node:9944")
     if err != nil {
-        http.Error(w, string(out), http.StatusInternalServerError)
+        http.Error(w, err.Error(), http.StatusInternalServerError)
         return
     }
+    defer api.Client.Close()
+
+    meta, err := api.RPC.State.GetMetadataLatest()
+    if err != nil {
+        http.Error(w, err.Error(), http.StatusInternalServerError)
+        return
+    }
+
+    key, err := signature.KeyringPairFromSecret("//Alice", 42)
+    if err != nil {
+        http.Error(w, err.Error(), http.StatusInternalServerError)
+        return
+    }
+
+    dest, err := types.NewAddressFromHexAccountID(did)
+    if err != nil {
+        http.Error(w, err.Error(), http.StatusInternalServerError)
+        return
+    }
+
+    c, err := types.NewCall(meta, "Balances.transfer_allow_death", dest, types.NewUCompactFromUInt(100))
+    if err != nil {
+        http.Error(w, err.Error(), http.StatusInternalServerError)
+        return
+    }
+
+    ext := types.NewExtrinsic(c)
+    genesisHash, err := api.RPC.Chain.GetBlockHash(0)
+    if err != nil {
+        http.Error(w, err.Error(), http.StatusInternalServerError)
+        return
+    }
+
+    rv, err := api.RPC.State.GetRuntimeVersionLatest()
+    if err != nil {
+        http.Error(w, err.Error(), http.StatusInternalServerError)
+        return
+    }
+
+    nonce, err := api.RPC.System.AccountNextIndex(key.Address)
+    if err != nil {
+        http.Error(w, err.Error(), http.StatusInternalServerError)
+        return
+    }
+
+    o := types.SignatureOptions{
+        BlockHash:          genesisHash,
+        Era:                types.ExtrinsicEra{IsImmortalEra: true},
+        GenesisHash:        genesisHash,
+        Nonce:              types.NewUCompactFromUInt(uint64(nonce)),
+        SpecVersion:        rv.SpecVersion,
+        Tip:                types.NewUCompactFromUInt(0),
+        TransactionVersion: rv.TransactionVersion,
+    }
+
+    err = ext.Sign(key, o)
+    if err != nil {
+        http.Error(w, err.Error(), http.StatusInternalServerError)
+        return
+    }
+
+    _, err = api.RPC.Author.SubmitAndWatchExtrinsic(ext)
+    if err != nil {
+        http.Error(w, err.Error(), http.StatusInternalServerError)
+        return
+    }
+
     funded[did] = true
     w.Write([]byte(`{"ok":true,"amount":100}`))
 }

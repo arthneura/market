@@ -74,17 +74,24 @@ func Handler(w http.ResponseWriter, r *http.Request) {
         return
     }
 
-    nonce, err := api.RPC.System.AccountNextIndex(key.Address)
+    accountKey, err := types.CreateStorageKey(meta, "System", "Account", key.PublicKey)
     if err != nil {
         http.Error(w, err.Error(), http.StatusInternalServerError)
         return
     }
+    var accountInfo types.AccountInfo
+    _, err = api.RPC.State.GetStorageLatest(accountKey, &accountInfo)
+    if err != nil {
+        http.Error(w, err.Error(), http.StatusInternalServerError)
+        return
+    }
+    nonce := uint64(accountInfo.Nonce)
 
     o := types.SignatureOptions{
         BlockHash:          genesisHash,
         Era:                types.ExtrinsicEra{IsImmortalEra: true},
         GenesisHash:        genesisHash,
-        Nonce:              types.NewUCompactFromUInt(uint64(nonce)),
+        Nonce:              types.NewUCompactFromUInt(nonce),
         SpecVersion:        rv.SpecVersion,
         Tip:                types.NewUCompactFromUInt(0),
         TransactionVersion: rv.TransactionVersion,

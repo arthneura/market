@@ -9,23 +9,21 @@ import (
 
 func main() {
     log.SetFlags(0)
-    to := os.Getenv("TO_DID")
+    to := os.Getenv("TO")
     if to == "" {
-        log.Fatal("TO_DID required")
+        log.Fatal("TO required")
     }
     amount := os.Getenv("AMOUNT")
     if amount == "" {
         amount = "100"
     }
-    core := os.Getenv("ARTHNEURA_CORE")
-    if core == "" {
-        core = "../arthneura-core"
+    bin := os.Getenv("VECTOR_BIN")
+    if bin == "" {
+        bin = "/usr/local/bin/offchain-vector-db"
     }
-    cmd := exec.Command("cargo", "run", "-q", "-p", "offchain-vector-db")
-    cmd.Dir = core
+    cmd := exec.Command(bin)
     cmd.Env = append(os.Environ(),
         "ACTION=transfer",
-        "FROM=//Alice",
         "TO="+to,
         "AMOUNT="+amount,
     )

@@ -55,7 +55,7 @@ func Handler(w http.ResponseWriter, r *http.Request) {
         return
     }
 
-    c, err := types.NewCall(meta, "Balances.transfer_allow_death", dest, types.NewUCompactFromUInt(100))
+    c, err := types.NewCall(meta, "Balances.transfer_allow_death", dest, types.NewUCompactFromUInt(1000000000000000))
     if err != nil {
         http.Error(w, err.Error(), http.StatusInternalServerError)
         return

@@ -2,11 +2,9 @@ package faucet
 
 import (
     "net/http"
+    "os"
+    "os/exec"
     "sync"
-
-    gsrpc "github.com/centrifuge/go-substrate-rpc-client/v4"
-    "github.com/centrifuge/go-substrate-rpc-client/v4/signature"
-    "github.com/centrifuge/go-substrate-rpc-client/v4/types"
 )
 
 var (
@@ -31,84 +29,22 @@ func Handler(w http.ResponseWriter, r *http.Request) {
         return
     }
 
-    api, err := gsrpc.NewSubstrateAPI("ws://node:9944")
+    bin := os.Getenv("TRANSFER_BIN")
+    if bin == "" {
+        bin = "/usr/local/bin/transfer-me"
+    }
+    cmd := exec.Command(bin)
+    cmd.Env = append(os.Environ(),
+        "ACTION=transfer",
+        "TO="+did,
+        "AMOUNT=1000000000000000",
+        "ARTHNEURA_CORE=/home/azureuser/arthneura-core",
+    )
+    out, err := cmd.CombinedOutput()
     if err != nil {
-        http.Error(w, err.Error(), http.StatusInternalServerError)
+        http.Error(w, string(out), http.StatusInternalServerError)
         return
     }
-
-    meta, err := api.RPC.State.GetMetadataLatest()
-    if err != nil {
-        http.Error(w, err.Error(), http.StatusInternalServerError)
-        return
-    }
-
-    key, err := signature.KeyringPairFromSecret("//Alice", 42)
-    if err != nil {
-        http.Error(w, err.Error(), http.StatusInternalServerError)
-        return
-    }
-
-    dest, err := types.NewMultiAddressFromHexAccountID(did)
-    if err != nil {
-        http.Error(w, err.Error(), http.StatusInternalServerError)
-        return
-    }
-
-    c, err := types.NewCall(meta, "Balances.transfer_allow_death", dest, types.NewUCompactFromUInt(1000000000000000))
-    if err != nil {
-        http.Error(w, err.Error(), http.StatusInternalServerError)
-        return
-    }
-
-    ext := types.NewExtrinsic(c)
-    genesisHash, err := api.RPC.Chain.GetBlockHash(0)
-    if err != nil {
-        http.Error(w, err.Error(), http.StatusInternalServerError)
-        return
-    }
-
-    rv, err := api.RPC.State.GetRuntimeVersionLatest()
-    if err != nil {
-        http.Error(w, err.Error(), http.StatusInternalServerError)
-        return
-    }
-
-    accountKey, err := types.CreateStorageKey(meta, "System", "Account", key.PublicKey)
-    if err != nil {
-        http.Error(w, err.Error(), http.StatusInternalServerError)
-        return
-    }
-    var accountInfo types.AccountInfo
-    _, err = api.RPC.State.GetStorageLatest(accountKey, &accountInfo)
-    if err != nil {
-        http.Error(w, err.Error(), http.StatusInternalServerError)
-        return
-    }
-    nonce := uint64(accountInfo.Nonce)
-
-    o := types.SignatureOptions{
-        BlockHash:          genesisHash,
-        Era:                types.ExtrinsicEra{IsImmortalEra: true},
-        GenesisHash:        genesisHash,
-        Nonce:              types.NewUCompactFromUInt(nonce),
-        SpecVersion:        rv.SpecVersion,
-        Tip:                types.NewUCompactFromUInt(0),
-        TransactionVersion: rv.TransactionVersion,
-    }
-
-    err = ext.Sign(key, o)
-    if err != nil {
-        http.Error(w, err.Error(), http.StatusInternalServerError)
-        return
-    }
-
-    _, err = api.RPC.Author.SubmitAndWatchExtrinsic(ext)
-    if err != nil {
-        http.Error(w, err.Error(), http.StatusInternalServerError)
-        return
-    }
-
     funded[did] = true
-    w.Write([]byte(`{"ok":true,"amount":100}`))
+    w.Write([]byte(`{"ok":true,"amount":1000000000000000}`))
 }

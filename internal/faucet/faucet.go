@@ -2,8 +2,6 @@ package faucet
 
 import (
     "net/http"
-    "os"
-    "os/exec"
     "sync"
 )
 
@@ -26,14 +24,6 @@ func Handler(w http.ResponseWriter, r *http.Request) {
     defer mu.Unlock()
     if funded[did] {
         http.Error(w, "already funded", http.StatusConflict)
-        return
-    }
-    bin := "/usr/local/bin/transfer-me"
-    cmd := exec.Command(bin)
-    cmd.Env = append(os.Environ(), "TO="+did, "AMOUNT=100")
-    out, err := cmd.CombinedOutput()
-    if err != nil {
-        http.Error(w, string(out), http.StatusInternalServerError)
         return
     }
     funded[did] = true

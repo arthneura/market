@@ -2,10 +2,10 @@
 set -euo pipefail
 
 BIN="${BIN:-$HOME/.arthneura/bin/decide-me}"
-LOCK_BIN="${LOCK_BIN:-$HOME/.arthneura/bin/lock-me}"
 SPEC_BIN="${SPEC_BIN:-$HOME/.arthneura/bin/spec-me}"
 COMMIT_BIN="${COMMIT_BIN:-$HOME/.arthneura/bin/commit-me}"
-CHAIN_REGISTER_BIN="${CHAIN_REGISTER_BIN:-$HOME/.arthneura/bin/chain-register-me}"
+LOCK_BIN="${LOCK_BIN:-$HOME/.arthneura/bin/lock-me}"
+REGISTER_BIN="${REGISTER_BIN:-$HOME/.arthneura/bin/chain-register-me}"
 POINTER="$HOME/.arthneura/owner.dir"
 MARKET_URL="${MARKET_URL:-https://api.arthneura.com}"
 
@@ -18,6 +18,10 @@ DIR="$(tr -d '[:space:]' < "$POINTER")"
 DID="$(tr -d '[:space:]' < "$DIR/owner.did")"
 SEED="$(tr -d '[:space:]' < "$DIR/controller.seed")"
 LOCAL="${DID#0x}"
+
+strip_hex() {
+  echo "${1#0x}"
+}
 
 # 1. Accept only if rules.json exists (seller side)
 if [ -f "$DIR/rules.json" ] && [ -x "$BIN" ]; then
@@ -39,19 +43,30 @@ if command -v jq >/dev/null 2>&1; then
     CHUNKS=$(echo "$STAMP" | jq -r '.total_chunks // empty')
 
     if [ "$LOCAL" = "$PROVIDER" ]; then
+      # Seller: spec if missing, then register if no CID
       if [ -x "$SPEC_BIN" ] && [ -n "$MERKLE" ] && [ "$MERKLE" != "null" ] && [ -n "$CHUNKS" ] && [ "$CHUNKS" != "null" ]; then
+        CLEAN_MERKLE=$(strip_hex "$MERKLE")
         echo "AUTO-SPEC offer=$OID"
-        OFFER_ID="$OID" MERKLE_ROOT="$MERKLE" TOTAL_CHUNKS="$CHUNKS" MARKET_URL="$MARKET_URL" "$SPEC_BIN" || true
+        OFFER_ID="$OID" MERKLE_ROOT="$CLEAN_MERKLE" TOTAL_CHUNKS="$CHUNKS" MARKET_URL="$MARKET_URL" "$SPEC_BIN" || true
       fi
-      if [ -x "$CHAIN_REGISTER_BIN" ] && { [ -z "$CID" ] || [ "$CID" = "null" ]; }; then
+      if [ -x "$REGISTER_BIN" ] && { [ -z "$CID" ] || [ "$CID" = "null" ]; }; then
         echo "AUTO-REGISTER offer=$OID"
-        OWNER_DIR="$DIR" OFFER_ID="$OID" MARKET_URL="$MARKET_URL" "$CHAIN_REGISTER_BIN" || true
+        OWNER_DIR="$DIR" OFFER_ID="$OID" MARKET_URL="$MARKET_URL" "$REGISTER_BIN" || true
       fi
     fi
 
-    if [ "$LOCAL" = "$CONSUMER" ] && [ -x "$LOCK_BIN" ] && [ -n "$CID" ] && [ "$CID" != "null" ] && [ "$READY" = "true" ]; then
-      echo "AUTO-LOCK offer=$OID commitment=$CID"
-      OWNER_DIR="$DIR" COMMITMENT_ID="$CID" "$LOCK_BIN" || true
+    if [ "$LOCAL" = "$CONSUMER" ]; then
+      # Buyer: commit if CID present, then lock if ready
+      if [ -x "$COMMIT_BIN" ] && [ -n "$CID" ] && [ "$CID" != "null" ]; then
+        CLEAN_CID=$(strip_hex "$CID")
+        echo "AUTO-COMMIT offer=$OID commitment=$CLEAN_CID"
+        OFFER_ID="$OID" COMMITMENT_ID="$CLEAN_CID" MARKET_URL="$MARKET_URL" "$COMMIT_BIN" || true
+      fi
+      if [ -x "$LOCK_BIN" ] && [ -n "$CID" ] && [ "$CID" != "null" ] && [ "$READY" = "true" ]; then
+        CLEAN_CID=$(strip_hex "$CID")
+        echo "AUTO-LOCK offer=$OID commitment=$CLEAN_CID"
+        OWNER_DIR="$DIR" COMMITMENT_ID="$CLEAN_CID" "$LOCK_BIN" || true
+      fi
     fi
-  done
+  done || true
 fi

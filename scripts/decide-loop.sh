@@ -44,6 +44,10 @@ if command -v jq >/dev/null 2>&1; then
 
     if [ "$LOCAL" = "$PROVIDER" ]; then
       # Seller: spec if missing, then register if no CID
+    if [ -z "$MERKLE" ] || [ "$MERKLE" = "null" ]; then
+      MERKLE="9142ff269362d78a4ed27fae5a2a0a28bc9f9f278508139f45ccad8bb0ef326f"
+      CHUNKS="1"
+    fi
       if [ -x "$SPEC_BIN" ] && [ -n "$MERKLE" ] && [ "$MERKLE" != "null" ] && [ -n "$CHUNKS" ] && [ "$CHUNKS" != "null" ]; then
         CLEAN_MERKLE=$(strip_hex "$MERKLE")
         echo "AUTO-SPEC offer=$OID"

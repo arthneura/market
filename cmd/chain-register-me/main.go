@@ -1,6 +1,7 @@
 package main
 
 import (
+    "bytes"
     "encoding/json"
     "fmt"
     "io"
@@ -75,13 +76,13 @@ func main() {
         log.Fatalf("local DID %s is not provider %s", localDid, provider)
     }
 
-    core := os.Getenv("ARTHNEURA_CORE")
-    if core == "" {
-        core = "../arthneura-core"
+    home, _ := os.UserHomeDir()
+    binPath := filepath.Join(home, ".arthneura", "bin", "offchain-vector-db")
+    if _, err := os.Stat(binPath); err != nil {
+        log.Fatalf("offchain-vector-db binary not found at %s", binPath)
     }
 
-    cmd := exec.Command("cargo", "run", "-q", "-p", "offchain-vector-db")
-    cmd.Dir = core
+    cmd := exec.Command(binPath)
     cmd.Env = append(os.Environ(),
         "ACTION=register",
         "CONTROLLER_SEED="+seed,
@@ -89,13 +90,43 @@ func main() {
         "CONSUMER_DID=0x"+consumer,
         fmt.Sprintf("PRICE=%d", st.Price),
         "SCHEMA="+st.Schema,
-        "MERKLE_ROOT="+st.MerkleRoot,
-        fmt.Sprintf("TOTAL_CHUNKS=%d", st.TotalChunks),
+        "PAYLOAD=arthneura stamp payload",
+        "CHAIN_WS="+os.Getenv("CHAIN_WS"),
     )
     out, err := cmd.CombinedOutput()
     fmt.Print(string(out))
     if err != nil {
         log.Fatalf("register failed: %v", err)
     }
+
+    cid := ""
+    for _, line := range strings.Split(string(out), "\n") {
+        line = strings.TrimSpace(line)
+        if strings.HasPrefix(line, "commitment_id=") || strings.Contains(line, "commitment_id=") {
+            parts := strings.SplitN(line, "commitment_id=", 2)
+            if len(parts) == 2 {
+                raw := strings.Fields(parts[1])[0]
+                cid = strings.TrimPrefix(raw, "0x")
+                break
+            }
+        }
+    }
+    if cid == "" || len(cid) != 64 {
+        log.Fatalf("could not parse valid commitment_id from register output: %q", cid)
+    }
+
+    linkBody := map[string]string{"commitment_id": cid}
+    linkJSON, _ := json.Marshal(linkBody)
+    linkResp, err := http.Post(market+"/v1/offers/"+offerID+"/commitment", "application/json", bytes.NewReader(linkJSON))
+    if err != nil {
+        log.Fatalf("commitment link failed: %v", err)
+    }
+    defer linkResp.Body.Close()
+    linkOut, _ := io.ReadAll(linkResp.Body)
+    if linkResp.StatusCode != 200 && linkResp.StatusCode != 201 {
+        log.Fatalf("commitment link failed (%d): %s", linkResp.StatusCode, string(linkOut))
+    }
+
     fmt.Println("REGISTER done")
+    fmt.Println("COMMITMENT linked:", cid)
 }

@@ -36,18 +36,23 @@ func main() {
     }
     did := strings.TrimPrefix(strings.TrimSpace(string(didB)), "0x")
 
-    core := os.Getenv("ARTHNEURA_CORE")
-    if core == "" {
-        core = "../arthneura-core"
+    bin := os.Getenv("CHAIN_BIN")
+    if bin == "" {
+        bin = filepath.Join(os.Getenv("HOME"), ".arthneura", "bin", "offchain-vector-db")
     }
 
-    cmd := exec.Command("cargo", "run", "-q", "-p", "offchain-vector-db")
-    cmd.Dir = core
+    ws := os.Getenv("CHAIN_WS")
+    if ws == "" {
+        ws = "ws://20.219.152.30:9944"
+    }
+
+    cmd := exec.Command(bin)
     cmd.Env = append(os.Environ(),
         "ACTION=acknowledge",
         "CONTROLLER_SEED="+seed,
         "COMMITMENT_ID="+cid,
         "CONSUMER_DID="+did,
+        "CHAIN_WS="+ws,
     )
     out, err := cmd.CombinedOutput()
     fmt.Print(string(out))

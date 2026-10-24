@@ -23,3 +23,15 @@ $data.mcpServers.arthneura = @{
 $data | ConvertTo-Json -Depth 6 | Set-Content -Path $cfg -Encoding utf8
 Write-Output "WROTE $cfg"
 Write-Output "Put arthneura-mcp.exe and register-me.exe in $bin"
+
+# --- Start continuous decide-loop (Windows) ---
+$LogDir = "$env:USERPROFILE\.arthneura\logs"
+New-Item -ItemType Directory -Force -Path $LogDir | Out-Null
+
+$Action = New-ScheduledTaskAction -Execute "powershell.exe" -Argument "-NoProfile -WindowStyle Hidden -Command `"cd `$env:USERPROFILE\arthneura-market; .\scripts\run-decide-loop.sh`""
+$Trigger = New-ScheduledTaskTrigger -AtLogOn
+$Settings = New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries -StartWhenAvailable
+$Principal = New-ScheduledTaskPrincipal -UserId $env:USERNAME -LogonType Interactive
+
+Register-ScheduledTask -TaskName "ArthNeuraDecideLoop" -Action $Action -Trigger $Trigger -Settings $Settings -Principal $Principal -Force
+Write-Host "Registered continuous decide-loop task (Windows)"

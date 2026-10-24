@@ -55,3 +55,16 @@ if [ "$(uname -s)" = "Darwin" ]; then
   launchctl load "$PLIST_DST"
   echo "Loaded continuous decide-loop service"
 fi
+
+# --- Start continuous decide-loop (Linux) ---
+if [ "$(uname -s)" = "Linux" ]; then
+  SERVICE_SRC="$ROOT/scripts/systemd/arthneura-decide.service"
+  SERVICE_DST="$HOME/.config/systemd/user/arthneura-decide.service"
+  mkdir -p "$HOME/.config/systemd/user" "$HOME/.arthneura/logs"
+  
+  cp "$SERVICE_SRC" "$SERVICE_DST"
+  
+  systemctl --user daemon-reload
+  systemctl --user enable --now arthneura-decide.service
+  echo "Enabled continuous decide-loop service (Linux)"
+fi

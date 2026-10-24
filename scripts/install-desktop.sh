@@ -40,3 +40,31 @@ print("WROTE", cfg)
 print("MCP", bindir / "arthneura-mcp")
 print("REGISTER", bindir / "register-me")
 PY
+
+# --- Start continuous decide-loop (macOS) ---
+if [ "$(uname -s)" = "Darwin" ]; then
+  PLIST_SRC="$ROOT/scripts/launchd/com.arthneura.decide-loop.plist"
+  PLIST_DST="$HOME/Library/LaunchAgents/com.arthneura.decide-loop.plist"
+  mkdir -p "$HOME/Library/LaunchAgents" "$HOME/.arthneura/logs"
+  
+  # Replace placeholder with actual home
+  sed "s|/Users/REPLACE_ME|$HOME|g" "$PLIST_SRC" > "$PLIST_DST"
+  
+  # Load the service
+  launchctl unload "$PLIST_DST" 2>/dev/null || true
+  launchctl load "$PLIST_DST"
+  echo "Loaded continuous decide-loop service"
+fi
+
+# --- Start continuous decide-loop (Linux) ---
+if [ "$(uname -s)" = "Linux" ]; then
+  SERVICE_SRC="$ROOT/scripts/systemd/arthneura-decide.service"
+  SERVICE_DST="$HOME/.config/systemd/user/arthneura-decide.service"
+  mkdir -p "$HOME/.config/systemd/user" "$HOME/.arthneura/logs"
+  
+  cp "$SERVICE_SRC" "$SERVICE_DST"
+  
+  systemctl --user daemon-reload
+  systemctl --user enable --now arthneura-decide.service
+  echo "Enabled continuous decide-loop service (Linux)"
+fi

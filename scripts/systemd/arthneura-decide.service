@@ -1,0 +1,14 @@
+[Unit]
+Description=ArthNeura continuous decide-loop
+After=network.target
+
+[Service]
+Type=simple
+ExecStart=/bin/bash -lc 'cd $HOME/arthneura-market && ./scripts/run-decide-loop.sh'
+Restart=always
+RestartSec=10
+StandardOutput=append:%h/.arthneura/logs/decide-loop.log
+StandardError=append:%h/.arthneura/logs/decide-loop.log
+
+[Install]
+WantedBy=default.target

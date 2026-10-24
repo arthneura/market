@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>com.arthneura.decide-loop</string>
+  <key>ProgramArguments</key>
+  <array>
+    <string>/bin/bash</string>
+    <string>-lc</string>
+    <string>cd "$HOME/arthneura-market" && ./scripts/run-decide-loop.sh</string>
+  </array>
+  <key>RunAtLoad</key>
+  <true/>
+  <key>KeepAlive</key>
+  <true/>
+  <key>StandardOutPath</key>
+  <string>/Users/REPLACE_ME/.arthneura/logs/launchd.out</string>
+  <key>StandardErrorPath</key>
+  <string>/Users/REPLACE_ME/.arthneura/logs/launchd.err</string>
+</dict>
+</plist>

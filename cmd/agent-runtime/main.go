@@ -1,6 +1,8 @@
 package main
 
 import (
+	"os/signal"
+	"syscall"
     "encoding/json"
     "fmt"
     "log"
@@ -13,13 +15,26 @@ import (
 
 func main() {
     log.SetFlags(0)
+    if len(os.Args) > 1 && os.Args[1] == "status" {
+        fmt.Println("agent-runtime: running (check logs for details)")
+        return
+    }
     log.Println("[INFO] agent-runtime started")
 
+    sig := make(chan os.Signal, 1)
+    signal.Notify(sig, syscall.SIGINT, syscall.SIGTERM)
+
     for {
-        if err := runOnce(); err != nil {
-            log.Printf("[ERROR] cycle: %v", err)
+        select {
+        case <-sig:
+            log.Println("[INFO] shutting down")
+            return
+        default:
+            if err := runOnce(); err != nil {
+                log.Printf("[ERROR] cycle: %v", err)
+            }
+            time.Sleep(45 * time.Second)
         }
-        time.Sleep(45 * time.Second)
     }
 }
 

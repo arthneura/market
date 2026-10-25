@@ -479,6 +479,46 @@ func statusLocal(_ context.Context, _ *mcp.CallToolRequest, _ emptyIn) (*mcp.Cal
     return nil, statusOut{Actions: actions, Text: strings.Join(actions, "\n")}, nil
 }
 
+type registerCommitmentIn struct {
+    OfferID int64 `json:"offer_id" jsonschema:"accepted offer id to register commitment for"`
+}
+
+type registerCommitmentOut struct {
+    Error string `json:"error,omitempty"`
+    Text  string `json:"text,omitempty"`
+}
+
+func registerCommitmentLocal(_ context.Context, _ *mcp.CallToolRequest, in registerCommitmentIn) (*mcp.CallToolResult, registerCommitmentOut, error) {
+    bin := os.Getenv("CHAIN_REGISTER_BIN")
+    if bin == "" {
+        return nil, registerCommitmentOut{Error: "CHAIN_REGISTER_BIN missing"}, nil
+    }
+    if in.OfferID <= 0 {
+        return nil, registerCommitmentOut{Error: "offer_id required"}, nil
+    }
+    dir := os.Getenv("OWNER_DIR")
+    if dir == "" {
+        if b, err := os.ReadFile(filepath.Join(mustHome(), ".arthneura", "owner.dir")); err == nil {
+            dir = strings.TrimSpace(string(b))
+        }
+    }
+    if dir == "" {
+        return nil, registerCommitmentOut{Error: "no owner drawer"}, nil
+    }
+    cmd := exec.Command(bin)
+    cmd.Env = append(os.Environ(),
+        "OWNER_DIR="+dir,
+        fmt.Sprintf("OFFER_ID=%d", in.OfferID),
+        "MARKET_URL="+os.Getenv("MARKET_URL"),
+    )
+    out, err := cmd.CombinedOutput()
+    text := strings.TrimSpace(string(out))
+    if err != nil {
+        return nil, registerCommitmentOut{Error: text}, nil
+    }
+    return nil, registerCommitmentOut{Text: text}, nil
+}
+
 func main() {
 	httpAddr := flag.String("http", "", "if set, streamable HTTP listen addr (example :8787)")
 	flag.Parse()
@@ -502,7 +542,8 @@ func main() {
 				if os.Getenv("ACCEPT_BIN") != "" {
 					mcp.AddTool(s, &mcp.Tool{Name: "arthneura_accept", Description: "Sign this offer with the local key. Other side of decide. No escrow."}, acceptLocal)
 					if os.Getenv("LOCK_BIN") != "" {
-                        mcp.AddTool(s, &mcp.Tool{Name: "arthneura_status", Description: "Show next pending actions for this local agent (register or lock)."}, statusLocal)
+                        mcp.AddTool(s, &mcp.Tool{Name: "arthneura_register_commitment", Description: "Register commitment on chain for an accepted offer. Seller only. Runs local binary."}, registerCommitmentLocal)
+        mcp.AddTool(s, &mcp.Tool{Name: "arthneura_status", Description: "Show next pending actions for this local agent (register or lock)."}, statusLocal)
         mcp.AddTool(s, &mcp.Tool{Name: "arthneura_lock", Description: "Trigger on-chain acknowledge to lock funds for a commitment. Runs only on this machine."}, lockLocal)
                     }
 				}

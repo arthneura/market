@@ -1,7 +1,9 @@
 package main
 
 import (
-	"encoding/json"
+	"os/signal"
+	"syscall"
+    "encoding/json"
     "fmt"
     "log"
     "os"
@@ -13,13 +15,26 @@ import (
 
 func main() {
     log.SetFlags(0)
-    log.Println("agent-runtime started")
+    if len(os.Args) > 1 && os.Args[1] == "status" {
+        fmt.Println("agent-runtime: running (check logs for details)")
+        return
+    }
+    log.Println("[INFO] agent-runtime started")
+
+    sig := make(chan os.Signal, 1)
+    signal.Notify(sig, syscall.SIGINT, syscall.SIGTERM)
 
     for {
-        if err := runOnce(); err != nil {
-            log.Printf("cycle error: %v", err)
+        select {
+        case <-sig:
+            log.Println("[INFO] shutting down")
+            return
+        default:
+            if err := runOnce(); err != nil {
+                log.Printf("[ERROR] cycle: %v", err)
+            }
+            time.Sleep(45 * time.Second)
         }
-        time.Sleep(45 * time.Second)
     }
 }
 
@@ -38,7 +53,7 @@ func runOnce() error {
         return err
     }
     local := strings.TrimPrefix(did, "0x")
-    log.Printf("drawer=%s did=%s...", dir, local[:8])
+    log.Printf("[INFO] drawer=%s did=%s...", dir, local[:8])
 
     market := os.Getenv("MARKET_URL")
     if market == "" {
@@ -58,10 +73,10 @@ func runOnce() error {
         if o.Status != "accepted" {
             continue
         }
-        log.Printf("checking accepted offer %d", o.ID)
+        log.Printf("[INFO] checking offer %d", o.ID)
         stampOut, err := exec.Command("curl", "-s", fmt.Sprintf("%s/v1/offers/%d/stamp", market, o.ID)).Output()
         if err != nil {
-            log.Printf("stamp error: %v", err)
+            log.Printf("[WARN] stamp %d: %v", o.ID, err)
             continue
         }
         var st struct {
@@ -76,16 +91,31 @@ func runOnce() error {
         prov := strings.TrimPrefix(st.ProviderDID, "0x")
         cons := strings.TrimPrefix(st.ConsumerDID, "0x")
         if local == prov && (st.CommitmentID == "" || st.CommitmentID == "null") {
-            log.Printf("AUTO-REGISTER offer=%d", o.ID)
-            _ = runBin("chain-register-me", "OWNER_DIR="+dir, fmt.Sprintf("OFFER_ID=%d", o.ID), "MARKET_URL="+market)
+            log.Printf("[INFO] AUTO-REGISTER offer=%d", o.ID)
+            retry(func() error {
+                return runBin("chain-register-me", "OWNER_DIR="+dir, fmt.Sprintf("OFFER_ID=%d", o.ID), "MARKET_URL="+market)
+            })
         }
         if local == cons && st.Ready && st.CommitmentID != "" && st.CommitmentID != "null" {
-            log.Printf("AUTO-LOCK offer=%d", o.ID)
-            _ = runBin("lock-me", "OWNER_DIR="+dir, "COMMITMENT_ID="+strings.TrimPrefix(st.CommitmentID, "0x"))
+            log.Printf("[INFO] AUTO-LOCK offer=%d", o.ID)
+            retry(func() error {
+                return runBin("lock-me", "OWNER_DIR="+dir, "COMMITMENT_ID="+strings.TrimPrefix(st.CommitmentID, "0x"))
+            })
         }
     }
-    log.Println("cycle complete")
+    log.Println("[INFO] cycle complete")
     return nil
+}
+
+func retry(fn func() error) {
+    for i := 0; i < 3; i++ {
+        if err := fn(); err == nil {
+            return
+        }
+        log.Printf("[WARN] retry %d/3", i+1)
+        time.Sleep(3 * time.Second)
+    }
+    log.Println("[ERROR] failed after retries")
 }
 
 func loadDrawer() (string, string, error) {
@@ -113,6 +143,6 @@ func runBin(name string, env ...string) error {
     cmd := exec.Command(bin)
     cmd.Env = append(os.Environ(), env...)
     out, err := cmd.CombinedOutput()
-    log.Printf("%s: %s", name, strings.TrimSpace(string(out)))
+    log.Printf("[INFO] %s: %s", name, strings.TrimSpace(string(out)))
     return err
 }

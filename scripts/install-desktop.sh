@@ -68,3 +68,60 @@ if [ "$(uname -s)" = "Linux" ]; then
   systemctl --user enable --now arthneura-decide.service
   echo "Enabled continuous decide-loop service (Linux)"
 fi
+
+# --- Build and start agent-runtime ---
+(cd "$ROOT" && go build -o "$BIN_DIR/agent-runtime" ./cmd/agent-runtime)
+chmod 755 "$BIN_DIR/agent-runtime"
+
+if [ "$(uname -s)" = "Darwin" ]; then
+  PLIST_DST="$HOME/Library/LaunchAgents/com.arthneura.agent-runtime.plist"
+  mkdir -p "$HOME/Library/LaunchAgents" "$HOME/.arthneura/logs"
+  cat > "$PLIST_DST" << PLIST
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>com.arthneura.agent-runtime</string>
+  <key>ProgramArguments</key>
+  <array>
+    <string>$BIN_DIR/agent-runtime</string>
+  </array>
+  <key>RunAtLoad</key>
+  <true/>
+  <key>KeepAlive</key>
+  <true/>
+  <key>StandardOutPath</key>
+  <string>$HOME/.arthneura/logs/agent-runtime.log</string>
+  <key>StandardErrorPath</key>
+  <string>$HOME/.arthneura/logs/agent-runtime.log</string>
+</dict>
+</plist>
+PLIST
+  launchctl unload "$PLIST_DST" 2>/dev/null || true
+  launchctl load "$PLIST_DST"
+  echo "Loaded agent-runtime service (macOS)"
+fi
+
+if [ "$(uname -s)" = "Linux" ]; then
+  SERVICE_DST="$HOME/.config/systemd/user/arthneura-agent-runtime.service"
+  mkdir -p "$HOME/.config/systemd/user" "$HOME/.arthneura/logs"
+  cat > "$SERVICE_DST" << SERVICE
+[Unit]
+Description=ArthNeura agent-runtime
+After=network.target
+
+[Service]
+ExecStart=$BIN_DIR/agent-runtime
+Restart=always
+RestartSec=10
+StandardOutput=append:%h/.arthneura/logs/agent-runtime.log
+StandardError=append:%h/.arthneura/logs/agent-runtime.log
+
+[Install]
+WantedBy=default.target
+SERVICE
+  systemctl --user daemon-reload
+  systemctl --user enable --now arthneura-agent-runtime.service
+  echo "Enabled agent-runtime service (Linux)"
+fi

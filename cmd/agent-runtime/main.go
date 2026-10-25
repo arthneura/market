@@ -59,8 +59,30 @@ func runOnce() error {
             continue
         }
         log.Printf("checking accepted offer %d", o.ID)
-        // Next: call stamp and decide action
-        _ = runBin("decide-me", "OWNER_DIR="+dir)
+        stampOut, err := exec.Command("curl", "-s", fmt.Sprintf("%s/v1/offers/%d/stamp", market, o.ID)).Output()
+        if err != nil {
+            log.Printf("stamp error: %v", err)
+            continue
+        }
+        var st struct {
+            ProviderDID  string `json:"provider_did"`
+            ConsumerDID  string `json:"consumer_did"`
+            CommitmentID string `json:"commitment_id"`
+            Ready        bool   `json:"ready"`
+        }
+        if err := json.Unmarshal(stampOut, &st); err != nil {
+            continue
+        }
+        prov := strings.TrimPrefix(st.ProviderDID, "0x")
+        cons := strings.TrimPrefix(st.ConsumerDID, "0x")
+        if local == prov && (st.CommitmentID == "" || st.CommitmentID == "null") {
+            log.Printf("AUTO-REGISTER offer=%d", o.ID)
+            _ = runBin("chain-register-me", "OWNER_DIR="+dir, fmt.Sprintf("OFFER_ID=%d", o.ID), "MARKET_URL="+market)
+        }
+        if local == cons && st.Ready && st.CommitmentID != "" && st.CommitmentID != "null" {
+            log.Printf("AUTO-LOCK offer=%d", o.ID)
+            _ = runBin("lock-me", "OWNER_DIR="+dir, "COMMITMENT_ID="+strings.TrimPrefix(st.CommitmentID, "0x"))
+        }
     }
     log.Println("cycle complete")
     return nil

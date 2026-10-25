@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
     "fmt"
     "log"
     "os"
@@ -22,6 +23,15 @@ func main() {
     }
 }
 
+type offer struct {
+    ID     int64  `json:"id"`
+    Status string `json:"status"`
+}
+
+type offersResp struct {
+    Offers []offer `json:"offers"`
+}
+
 func runOnce() error {
     dir, did, err := loadDrawer()
     if err != nil {
@@ -35,14 +45,23 @@ func runOnce() error {
         market = "https://api.arthneura.com"
     }
 
-    // Simple curl for offers (later can use client package)
     out, err := exec.Command("curl", "-s", market+"/v1/offers").Output()
     if err != nil {
         return err
     }
-    log.Printf("offers fetched (%d bytes)", len(out))
+    var resp offersResp
+    if err := json.Unmarshal(out, &resp); err != nil {
+        return err
+    }
 
-    // For now just log. Next step: parse and act.
+    for _, o := range resp.Offers {
+        if o.Status != "accepted" {
+            continue
+        }
+        log.Printf("checking accepted offer %d", o.ID)
+        // Next: call stamp and decide action
+        _ = runBin("decide-me", "OWNER_DIR="+dir)
+    }
     log.Println("cycle complete")
     return nil
 }

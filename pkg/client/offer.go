@@ -13,6 +13,7 @@ type Offer struct {
 	FromDid   string `json:"from_did"`
 	ToDid     string `json:"to_did"`
 	Price     int64  `json:"price"`
+	Status    string `json:"status"`
 	Schema    string `json:"schema,omitempty"`
 }
 
@@ -46,13 +47,15 @@ func (c *Client) CreateOffer(in CreateOfferInput) (Offer, error) {
 }
 
 type Stamp struct {
-	OfferID      int64  `json:"offer_id"`
-	Ready        bool   `json:"ready"`
-	Reason       string `json:"reason"`
-	Schema       string `json:"schema"`
-	MerkleRoot   string `json:"merkle_root"`
-	TotalChunks  int64  `json:"total_chunks"`
-	CommitmentID string `json:"commitment_id"`
+    OfferID      int64  `json:"offer_id"`
+    ProviderDID  string `json:"provider_did"`
+    ConsumerDID  string `json:"consumer_did"`
+    Ready        bool   `json:"ready"`
+    Reason       string `json:"reason"`
+    Schema       string `json:"schema"`
+    MerkleRoot   string `json:"merkle_root"`
+    TotalChunks  int64  `json:"total_chunks"`
+    CommitmentID string `json:"commitment_id"`
 }
 
 func (c *Client) Stamp(offerID int64) (Stamp, error) {

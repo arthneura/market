@@ -428,6 +428,57 @@ func lockLocal(_ context.Context, _ *mcp.CallToolRequest, in lockIn) (*mcp.CallT
     return nil, lockOut{Text: text}, nil
 }
 
+type statusOut struct {
+    Error   string   `json:"error,omitempty"`
+    Actions []string `json:"actions,omitempty"`
+    Text    string   `json:"text,omitempty"`
+}
+
+func statusLocal(_ context.Context, _ *mcp.CallToolRequest, _ emptyIn) (*mcp.CallToolResult, statusOut, error) {
+    dir := os.Getenv("OWNER_DIR")
+    if dir == "" {
+        if b, err := os.ReadFile(filepath.Join(mustHome(), ".arthneura", "owner.dir")); err == nil {
+            dir = strings.TrimSpace(string(b))
+        }
+    }
+    if dir == "" {
+        return nil, statusOut{Error: "no owner drawer"}, nil
+    }
+    didB, err := os.ReadFile(filepath.Join(dir, "owner.did"))
+    if err != nil {
+        return nil, statusOut{Error: "no owner.did"}, nil
+    }
+    local := strings.TrimPrefix(strings.TrimSpace(string(didB)), "0x")
+
+    offers, err := market().ListOffers()
+    if err != nil {
+        return nil, statusOut{Error: err.Error()}, nil
+    }
+
+    var actions []string
+    for _, o := range offers {
+        if o.Status != "accepted" {
+            continue
+        }
+        st, err := market().Stamp(o.ID)
+        if err != nil {
+            continue
+        }
+        prov := strings.TrimPrefix(st.ProviderDID, "0x")
+        cons := strings.TrimPrefix(st.ConsumerDID, "0x")
+        if local == prov && (st.CommitmentID == "" || st.CommitmentID == "null") {
+            actions = append(actions, fmt.Sprintf("offer %d: register commitment (seller)", o.ID))
+        }
+        if local == cons && st.Ready && st.CommitmentID != "" && st.CommitmentID != "null" {
+            actions = append(actions, fmt.Sprintf("offer %d: lock funds (buyer)", o.ID))
+        }
+    }
+    if len(actions) == 0 {
+        return nil, statusOut{Text: "no pending actions"}, nil
+    }
+    return nil, statusOut{Actions: actions, Text: strings.Join(actions, "\n")}, nil
+}
+
 func main() {
 	httpAddr := flag.String("http", "", "if set, streamable HTTP listen addr (example :8787)")
 	flag.Parse()
@@ -451,7 +502,8 @@ func main() {
 				if os.Getenv("ACCEPT_BIN") != "" {
 					mcp.AddTool(s, &mcp.Tool{Name: "arthneura_accept", Description: "Sign this offer with the local key. Other side of decide. No escrow."}, acceptLocal)
 					if os.Getenv("LOCK_BIN") != "" {
-                        mcp.AddTool(s, &mcp.Tool{Name: "arthneura_lock", Description: "Trigger on-chain acknowledge to lock funds for a commitment. Runs only on this machine."}, lockLocal)
+                        mcp.AddTool(s, &mcp.Tool{Name: "arthneura_status", Description: "Show next pending actions for this local agent (register or lock)."}, statusLocal)
+        mcp.AddTool(s, &mcp.Tool{Name: "arthneura_lock", Description: "Trigger on-chain acknowledge to lock funds for a commitment. Runs only on this machine."}, lockLocal)
                     }
 				}
 			}

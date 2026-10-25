@@ -35,3 +35,14 @@ $Principal = New-ScheduledTaskPrincipal -UserId $env:USERNAME -LogonType Interac
 
 Register-ScheduledTask -TaskName "ArthNeuraDecideLoop" -Action $Action -Trigger $Trigger -Settings $Settings -Principal $Principal -Force
 Write-Host "Registered continuous decide-loop task (Windows)"
+
+# --- Start agent-runtime (Windows) ---
+$Runtime = Join-Path $bin "agent-runtime.exe"
+# Note: build agent-runtime.exe separately and place in $bin
+$Action = New-ScheduledTaskAction -Execute $Runtime
+$Trigger = New-ScheduledTaskTrigger -AtLogOn
+$Settings = New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries -StartWhenAvailable -RestartCount 3 -RestartInterval (New-TimeSpan -Minutes 1)
+$Principal = New-ScheduledTaskPrincipal -UserId $env:USERNAME -LogonType Interactive
+
+Register-ScheduledTask -TaskName "ArthNeuraAgentRuntime" -Action $Action -Trigger $Trigger -Settings $Settings -Principal $Principal -Force
+Write-Host "Registered agent-runtime task (Windows)"

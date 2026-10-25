@@ -28,9 +28,21 @@ func runOnce() error {
         return err
     }
     local := strings.TrimPrefix(did, "0x")
-    log.Printf("drawer=%s did=%s", dir, local[:8])
+    log.Printf("drawer=%s did=%s...", dir, local[:8])
 
-    // TODO: fetch offers and act
+    market := os.Getenv("MARKET_URL")
+    if market == "" {
+        market = "https://api.arthneura.com"
+    }
+
+    // Simple curl for offers (later can use client package)
+    out, err := exec.Command("curl", "-s", market+"/v1/offers").Output()
+    if err != nil {
+        return err
+    }
+    log.Printf("offers fetched (%d bytes)", len(out))
+
+    // For now just log. Next step: parse and act.
     log.Println("cycle complete")
     return nil
 }

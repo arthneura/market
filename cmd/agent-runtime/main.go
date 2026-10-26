@@ -84,12 +84,22 @@ func runOnce() error {
             ConsumerDID  string `json:"consumer_did"`
             CommitmentID string `json:"commitment_id"`
             Ready        bool   `json:"ready"`
+            Reason       string `json:"reason"`
+            MerkleRoot   string `json:"merkle_root"`
         }
         if err := json.Unmarshal(stampOut, &st); err != nil {
             continue
         }
         prov := strings.TrimPrefix(st.ProviderDID, "0x")
         cons := strings.TrimPrefix(st.ConsumerDID, "0x")
+        if local == prov && strings.Contains(st.Reason, "delivery spec missing") {
+            log.Printf("[INFO] AUTO-SPEC offer=%d", o.ID)
+            merkle := "9142ff269362d78a4ed27fae5a2a0a28bc9f9f278508139f45ccad8bb0ef326f"
+            retry(func() error {
+                return runBin("spec-me", "OFFER_ID="+fmt.Sprint(o.ID), "MERKLE_ROOT="+merkle, "TOTAL_CHUNKS=1", "MARKET_URL="+market)
+            })
+            continue
+        }
         if local == prov && (st.CommitmentID == "" || st.CommitmentID == "null") {
             log.Printf("[INFO] AUTO-REGISTER offer=%d", o.ID)
             retry(func() error {

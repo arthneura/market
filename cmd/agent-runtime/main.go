@@ -55,17 +55,18 @@ func runOnce() error {
     local := strings.TrimPrefix(did, "0x")
     log.Printf("[INFO] drawer=%s did=%s...", dir, local[:8])
 
-    // Auto-decide for seller if rules.json exists
-    rulesPath := filepath.Join(dir, "rules.json")
-    if _, err := os.Stat(rulesPath); err == nil {
-        log.Println("[INFO] AUTO-DECIDE")
-        _ = runBin("decide-me", "OWNER_DIR="+dir, "OWNER_DID="+did, "CONTROLLER_SEED="+strings.TrimSpace(string(mustRead(filepath.Join(dir, "controller.seed")))))
-    }
-
     market := os.Getenv("MARKET_URL")
     if market == "" {
         market = "https://api.arthneura.com"
     }
+
+    // Auto-decide for seller if rules.json exists
+    rulesPath := filepath.Join(dir, "rules.json")
+    if _, err := os.Stat(rulesPath); err == nil {
+        log.Println("[INFO] AUTO-DECIDE")
+        _ = runBin("decide-me", "OWNER_DIR="+dir, "OWNER_DID="+did, "CONTROLLER_SEED="+strings.TrimSpace(string(mustRead(filepath.Join(dir, "controller.seed")))), "MARKET_URL="+market)
+    }
+
     chainWS := os.Getenv("CHAIN_WS")
     if chainWS == "" {
         chainWS = "ws://20.219.152.30:9944"

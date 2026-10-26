@@ -64,7 +64,8 @@ func runOnce() error {
     rulesPath := filepath.Join(dir, "rules.json")
     if _, err := os.Stat(rulesPath); err == nil {
         log.Println("[INFO] AUTO-DECIDE")
-        _ = runBin("decide-me", "OWNER_DIR="+dir, "OWNER_DID="+did, "CONTROLLER_SEED="+strings.TrimSpace(string(mustRead(filepath.Join(dir, "controller.seed")))), "MARKET_URL="+market)
+        seed := strings.TrimSpace(string(mustRead(filepath.Join(dir, "controller.seed"))))
+        _ = runBin("decide-me", "OWNER_DIR="+dir, "OWNER_DID="+did, "CONTROLLER_SEED="+seed, "MARKET_URL="+market)
     }
 
     chainWS := os.Getenv("CHAIN_WS")

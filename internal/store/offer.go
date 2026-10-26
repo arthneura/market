@@ -175,7 +175,10 @@ func (s *Store) AcceptOffer(ctx context.Context, id int64, who []byte) (Offer, e
         return Offer{}, fmt.Errorf("not a party")
     }
     st := "open"
-    if accFrom && accTo {
+    // Seller accept is enough
+    if accTo {
+        st = "accepted"
+    } else if accFrom && accTo {
         st = "accepted"
     }
     _, err = s.pool.Exec(ctx, `

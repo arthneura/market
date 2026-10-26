@@ -91,6 +91,14 @@ func runOnce() error {
             log.Printf("[WARN] stamp %d: %v", o.ID, err)
             continue
         }
+        if strings.Contains(string(stampOut), "delivery spec missing") {
+            log.Printf("[INFO] AUTO-SPEC offer=%d", o.ID)
+            merkle := "9142ff269362d78a4ed27fae5a2a0a28bc9f9f278508139f45ccad8bb0ef326f"
+            retry(func() error {
+                return runBin("spec-me", "OFFER_ID="+fmt.Sprint(o.ID), "MERKLE_ROOT="+merkle, "TOTAL_CHUNKS=1", "MARKET_URL="+market)
+            })
+            continue
+        }
         var st struct {
             ProviderDID  string `json:"provider_did"`
             ConsumerDID  string `json:"consumer_did"`

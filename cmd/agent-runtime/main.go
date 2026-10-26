@@ -59,6 +59,10 @@ func runOnce() error {
     if market == "" {
         market = "https://api.arthneura.com"
     }
+    chainWS := os.Getenv("CHAIN_WS")
+    if chainWS == "" {
+        chainWS = "ws://20.219.152.30:9944"
+    }
 
     out, err := exec.Command("curl", "-s", market+"/v1/offers").Output()
     if err != nil {
@@ -103,13 +107,13 @@ func runOnce() error {
         if local == prov && (st.CommitmentID == "" || st.CommitmentID == "null") {
             log.Printf("[INFO] AUTO-REGISTER offer=%d", o.ID)
             retry(func() error {
-                return runBin("chain-register-me", "OWNER_DIR="+dir, fmt.Sprintf("OFFER_ID=%d", o.ID), "MARKET_URL="+market)
+                return runBin("chain-register-me", "OWNER_DIR="+dir, fmt.Sprintf("OFFER_ID=%d", o.ID), "MARKET_URL="+market, "CHAIN_WS="+chainWS)
             })
         }
         if local == cons && st.Ready && st.CommitmentID != "" && st.CommitmentID != "null" {
             log.Printf("[INFO] AUTO-LOCK offer=%d", o.ID)
             retry(func() error {
-                return runBin("lock-me", "OWNER_DIR="+dir, "COMMITMENT_ID="+strings.TrimPrefix(st.CommitmentID, "0x"))
+                return runBin("lock-me", "OWNER_DIR="+dir, "COMMITMENT_ID="+strings.TrimPrefix(st.CommitmentID, "0x"), "CHAIN_WS="+chainWS)
             })
         }
     }

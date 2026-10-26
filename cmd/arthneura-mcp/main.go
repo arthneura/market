@@ -470,7 +470,10 @@ func statusLocal(_ context.Context, _ *mcp.CallToolRequest, _ emptyIn) (*mcp.Cal
             actions = append(actions, fmt.Sprintf("offer %d: register commitment (seller)", o.ID))
         }
         if local == cons && st.Ready && st.CommitmentID != "" && st.CommitmentID != "null" {
-            actions = append(actions, fmt.Sprintf("offer %d: lock funds (buyer)", o.ID))
+            c, err := market().GetCommitment(strings.TrimPrefix(st.CommitmentID, "0x"))
+            if err != nil || c.Status != "acknowledged" {
+                actions = append(actions, fmt.Sprintf("offer %d: lock funds (buyer)", o.ID))
+            }
         }
     }
     if len(actions) == 0 {

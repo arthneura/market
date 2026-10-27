@@ -141,9 +141,28 @@ func runOnce() error {
                 }
                 if json.Unmarshal(cOut, &c) == nil && strings.TrimSpace(c.DeliverURL) != "" {
                     log.Printf("[INFO] AUTO-PULL offer=%d commitment=%s", o.ID, cid)
+                    pullErr := false
                     retry(func() error {
-                        return runBin("pull", "COMMITMENT_ID="+cid, "MARKET_URL="+market)
+                        err := runBin("pull", "COMMITMENT_ID="+cid, "MARKET_URL="+market)
+                        if err != nil {
+                            pullErr = true
+                        }
+                        return err
                     })
+                    if !pullErr {
+                        // AUTO-CLOSE only after successful pull
+                        log.Printf("[INFO] AUTO-CLOSE offer=%d commitment=%s", o.ID, cid)
+                        retry(func() error {
+                            return runBin("offchain-vector-db",
+                                "ACTION=close",
+                                "COMMITMENT_ID="+cid,
+                                "CONSUMER_DID="+local,
+                                "MERKLE_ROOT="+strings.TrimPrefix(st.MerkleRoot, "0x"),
+                                "TOTAL_CHUNKS=1",
+                                "CHAIN_WS="+chainWS,
+                                "CONTROLLER_SEED="+strings.TrimSpace(string(mustRead(filepath.Join(dir, "controller.seed")))))
+                        })
+                    }
                 }
             }
         }

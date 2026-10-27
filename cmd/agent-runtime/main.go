@@ -132,6 +132,20 @@ func runOnce() error {
             retry(func() error {
                 return runBin("lock-me", "OWNER_DIR="+dir, "COMMITMENT_ID="+strings.TrimPrefix(st.CommitmentID, "0x"), "CHAIN_WS="+chainWS)
             })
+            // AUTO-PULL for buyer when deliver_url is set
+            cid := strings.TrimPrefix(st.CommitmentID, "0x")
+            cOut, err := exec.Command("curl", "-s", market+"/v1/commitments/"+cid).Output()
+            if err == nil {
+                var c struct {
+                    DeliverURL string `json:"deliver_url"`
+                }
+                if json.Unmarshal(cOut, &c) == nil && strings.TrimSpace(c.DeliverURL) != "" {
+                    log.Printf("[INFO] AUTO-PULL offer=%d commitment=%s", o.ID, cid)
+                    retry(func() error {
+                        return runBin("pull", "COMMITMENT_ID="+cid, "MARKET_URL="+market)
+                    })
+                }
+            }
         }
         // AUTO-ANNOUNCE for seller when commitment exists but no deliver_url yet
         if local == prov && st.CommitmentID != "" && st.CommitmentID != "null" {

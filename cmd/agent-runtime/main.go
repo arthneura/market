@@ -133,6 +133,27 @@ func runOnce() error {
                 return runBin("lock-me", "OWNER_DIR="+dir, "COMMITMENT_ID="+strings.TrimPrefix(st.CommitmentID, "0x"), "CHAIN_WS="+chainWS)
             })
         }
+        // AUTO-ANNOUNCE for seller when commitment exists but no deliver_url yet
+        if local == prov && st.CommitmentID != "" && st.CommitmentID != "null" {
+            cid := strings.TrimPrefix(st.CommitmentID, "0x")
+            cOut, err := exec.Command("curl", "-s", market+"/v1/commitments/"+cid).Output()
+            if err == nil {
+                var c struct {
+                    DeliverURL string `json:"deliver_url"`
+                }
+                if json.Unmarshal(cOut, &c) == nil && strings.TrimSpace(c.DeliverURL) == "" {
+                    log.Printf("[INFO] AUTO-ANNOUNCE offer=%d commitment=%s", o.ID, cid)
+                    retry(func() error {
+                        bin := filepath.Join(os.Getenv("HOME"), ".arthneura", "bin", "announce")
+                        cmd := exec.Command(bin, "-id", cid)
+                        cmd.Env = append(os.Environ(), "ANNOUNCE_SEED="+strings.TrimSpace(string(mustRead(filepath.Join(dir, "controller.seed")))))
+                        out, err := cmd.CombinedOutput()
+                        log.Printf("[INFO] announce: %s", strings.TrimSpace(string(out)))
+                        return err
+                    })
+                }
+            }
+        }
     }
     log.Println("[INFO] cycle complete")
     return nil

@@ -148,8 +148,18 @@ func runOnce() error {
                         cmd := exec.Command(bin, "-id", cid)
                         cmd.Env = append(os.Environ(), "ANNOUNCE_SEED="+strings.TrimSpace(string(mustRead(filepath.Join(dir, "controller.seed")))))
                         out, err := cmd.CombinedOutput()
-                        log.Printf("[INFO] announce: %s", strings.TrimSpace(string(out)))
-                        return err
+                        if err != nil {
+                            log.Printf("[INFO] announce: %s", strings.TrimSpace(string(out)))
+                            return err
+                        }
+                        // POST the signed announce to market
+                        postCmd := exec.Command("curl", "-s", "-X", "POST",
+                            market+"/v1/commitments/"+cid+"/deliver",
+                            "-H", "Content-Type: application/json",
+                            "-d", strings.TrimSpace(string(out)))
+                        postOut, postErr := postCmd.CombinedOutput()
+                        log.Printf("[INFO] announce POST: %s", strings.TrimSpace(string(postOut)))
+                        return postErr
                     })
                 }
             }

@@ -66,6 +66,19 @@ func runOnce() error {
         log.Println("[INFO] AUTO-DECIDE")
         seed := strings.TrimSpace(string(mustRead(filepath.Join(dir, "controller.seed"))))
         _ = runBin("decide-me", "OWNER_DIR="+dir, "OWNER_DID="+did, "CONTROLLER_SEED="+seed, "MARKET_URL="+market)
+
+        // AUTO-PROVIDER: start provider in background if not already running
+        if _, err := exec.Command("pgrep", "-f", "provider").Output(); err != nil {
+            log.Println("[INFO] AUTO-PROVIDER starting")
+            bin := filepath.Join(os.Getenv("HOME"), ".arthneura", "bin", "provider")
+            cmd := exec.Command(bin)
+            cmd.Env = append(os.Environ(), "OWNER_DIR="+dir, "MARKET_URL="+market)
+            cmd.Stdout = nil
+            cmd.Stderr = nil
+            if err := cmd.Start(); err == nil {
+                log.Println("[INFO] AUTO-PROVIDER started")
+            }
+        }
     }
 
     chainWS := os.Getenv("CHAIN_WS")

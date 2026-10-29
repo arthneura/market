@@ -90,7 +90,8 @@ func main() {
         "CONSUMER_DID=0x"+consumer,
         fmt.Sprintf("PRICE=%d", st.Price),
         "SCHEMA="+st.Schema,
-        "PAYLOAD=arthneura stamp payload",
+        "MERKLE_ROOT="+st.MerkleRoot,
+        fmt.Sprintf("TOTAL_CHUNKS=%d", st.TotalChunks),
         "CHAIN_WS="+os.Getenv("CHAIN_WS"),
     )
     out, err := cmd.CombinedOutput()

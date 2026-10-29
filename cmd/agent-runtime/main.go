@@ -141,12 +141,17 @@ func runOnce() error {
             })
         }
         if local == cons && st.Ready && st.CommitmentID != "" && st.CommitmentID != "null" {
-            log.Printf("[INFO] AUTO-LOCK offer=%d", o.ID)
-            retry(func() error {
-                return runBin("lock-me", "OWNER_DIR="+dir, "COMMITMENT_ID="+strings.TrimPrefix(st.CommitmentID, "0x"), "CHAIN_WS="+chainWS)
-            })
-            // AUTO-PULL for buyer when deliver_url is set
             cid := strings.TrimPrefix(st.CommitmentID, "0x")
+            cOut, _ := exec.Command("curl", "-s", market+"/v1/commitments/"+cid).Output()
+            var c struct { Status string `json:"status"` }
+            already := json.Unmarshal(cOut, &c) == nil && c.Status == "acknowledged"
+            if !already {
+                log.Printf("[INFO] AUTO-LOCK offer=%d", o.ID)
+                retry(func() error {
+                    return runBin("lock-me", "OWNER_DIR="+dir, "COMMITMENT_ID="+cid, "CHAIN_WS="+chainWS)
+                })
+            }
+            // AUTO-PULL for buyer when deliver_url is set
             cOut, err := exec.Command("curl", "-s", market+"/v1/commitments/"+cid).Output()
             if err == nil {
                 var c struct {

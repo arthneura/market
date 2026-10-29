@@ -111,7 +111,8 @@ func main() {
         if cid == "" {
             cid = "unknown"
         }
-        outDir = filepath.Join("artifacts", cid)
+        home, _ := os.UserHomeDir()
+        outDir = filepath.Join(home, ".arthneura", "artifacts", cid)
     }
     if err := os.MkdirAll(outDir, 0o755); err != nil {
         log.Fatal(err)

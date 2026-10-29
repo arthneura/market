@@ -168,18 +168,22 @@ func runOnce() error {
                         return err
                     })
                     if !pullErr {
-                        // AUTO-CLOSE only after successful pull
-                        log.Printf("[INFO] AUTO-CLOSE offer=%d commitment=%s", o.ID, cid)
-                        retry(func() error {
-                            return runBin("offchain-vector-db",
-                                "ACTION=close",
-                                "COMMITMENT_ID="+cid,
-                                "CONSUMER_DID="+local,
-                                "MERKLE_ROOT="+strings.TrimPrefix(st.MerkleRoot, "0x"),
-                                "TOTAL_CHUNKS=1",
-                                "CHAIN_WS="+chainWS,
-                                "CONTROLLER_SEED="+strings.TrimSpace(string(mustRead(filepath.Join(dir, "controller.seed")))))
-                        })
+                        // Check if still active before close
+                        cOut2, _ := exec.Command("curl", "-s", market+"/v1/commitments/"+cid).Output()
+                        var c2 struct { Status string `json:"status"` }
+                        if json.Unmarshal(cOut2, &c2) == nil && c2.Status == "acknowledged" {
+                            log.Printf("[INFO] AUTO-CLOSE offer=%d commitment=%s", o.ID, cid)
+                            retry(func() error {
+                                return runBin("offchain-vector-db",
+                                    "ACTION=close",
+                                    "COMMITMENT_ID="+cid,
+                                    "CONSUMER_DID="+local,
+                                    "MERKLE_ROOT="+strings.TrimPrefix(st.MerkleRoot, "0x"),
+                                    "TOTAL_CHUNKS=1",
+                                    "CHAIN_WS="+chainWS,
+                                    "CONTROLLER_SEED="+strings.TrimSpace(string(mustRead(filepath.Join(dir, "controller.seed")))))
+                            })
+                        }
                     }
                 }
             }

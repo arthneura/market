@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-CORE="${ARTHNEURA_CORE:-/Users/sumit/arthneura-core}"
+CORE="${ARTHNEURA_CORE:-$HOME/arthneura-core}"
 cd "$ROOT"
 echo "=== 0. deps ==="
 curl -sf http://127.0.0.1:8080/health >/dev/null || { echo "ERROR api down"; exit 1; }

@@ -2,7 +2,7 @@
 set -euo pipefail
 DELIVER_URL="${DELIVER_URL:-http://127.0.0.1:8090}"
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-CORE="${ARTHNEURA_CORE:-/Users/sumit/arthneura-core}"
+CORE="${ARTHNEURA_CORE:-$HOME/arthneura-core}"
 CSV="$ROOT/testdata/meter/receipt.json"
 cd "$ROOT"
 curl -sf http://127.0.0.1:8080/health >/dev/null || { echo "ERROR api down"; exit 1; }

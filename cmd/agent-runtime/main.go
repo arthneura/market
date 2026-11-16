@@ -83,7 +83,7 @@ func runOnce() error {
 
     chainWS := os.Getenv("CHAIN_WS")
     if chainWS == "" {
-        chainWS = "ws://20.219.152.30:9944"
+        chainWS = "ws://127.0.0.1:9944"
     }
 
     out, err := exec.Command("curl", "-s", market+"/v1/offers").Output()

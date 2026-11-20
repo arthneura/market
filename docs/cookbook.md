@@ -43,7 +43,7 @@ Those stay in arthneura-core.
 
 ## Full deals (scripts)
 
-Need core checkout at /Users/sumit/arthneura-core or set ARTHNEURA_CORE.
+Need core checkout at $HOME/arthneura-core or set ARTHNEURA_CORE.
 
     ./scripts/market-csv-settle.sh     RESULT=CSV_SETTLED
     ./scripts/market-csv-fail.sh       RESULT=CSV_SCHEMA_REFUNDED

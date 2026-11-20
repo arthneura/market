@@ -38,7 +38,6 @@ func Handler(w http.ResponseWriter, r *http.Request) {
         "ACTION=transfer",
         "TO="+did,
         "AMOUNT=1000000000000000",
-        "ARTHNEURA_CORE=/home/azureuser/arthneura-core",
     )
     out, err := cmd.CombinedOutput()
     if err != nil {
